@@ -118,10 +118,15 @@ debuginfo_eip(uintptr_t addr, struct Eipdebuginfo *info)
 
 	// Find the relevant set of stabs
 	if (addr >= ULIM) {
+		cprintf("addr %x\n", addr);
 		stabs = __STAB_BEGIN__;
+		cprintf(" begin  %x\n", stabs);
 		stab_end = __STAB_END__;
+		cprintf(" end %x\n", stab_end);
 		stabstr = __STABSTR_BEGIN__;
+		cprintf(" str %x\n", stabstr);
 		stabstr_end = __STABSTR_END__;
+		cprintf("strend %x\n", stabstr_end);
 	} else {
 		// Can't search for user-level addresses yet!
   	        panic("User address");
@@ -179,7 +184,7 @@ debuginfo_eip(uintptr_t addr, struct Eipdebuginfo *info)
 	//	Look at the STABS documentation and <inc/stab.h> to find
 	//	which one.
 	// Your code here.
-
+	stab_binsearch(stabs, &lline, &rline, N_SO, addr);
 
 	// Search backwards from the line number for the relevant filename
 	// stab.
