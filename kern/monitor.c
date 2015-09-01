@@ -24,6 +24,7 @@ struct Command {
 static struct Command commands[] = {
 	{ "help", "Display this list of commands", mon_help },
 	{ "kerninfo", "Display information about the kernel", mon_kerninfo },
+	{ "backtrace", "Display information about the stack", mon_backtrace },
 };
 #define NCOMMANDS (sizeof(commands)/sizeof(commands[0]))
 
@@ -55,42 +56,40 @@ mon_kerninfo(int argc, char **argv, struct Trapframe *tf)
 	return 0;
 }
 
+#define		FORMAT_LENGTH 	80
+#define		EBP(_v)		((uint32_t)_v)
+
+#define		EIP(_ebp)	((uint32_t)*(_ebp+1))
+#define		ARG(_v,_cnt)	((uint32_t)*(_v+((_cnt)+2)))
+
+
 int
 mon_backtrace(int argc, char **argv, struct Trapframe *tf)
 {
 	// Your code here.
-	uint32_t ebp, eip, arg1, arg2, arg3, arg4, arg5;
-	uint32_t *ptr;
+	uint32_t *addr = 0;
+	char format[FORMAT_LENGTH] = {0};
+	char formatName[FORMAT_LENGTH] = { 0 };
 	struct Eipdebuginfo info;
-
-	ebp = read_ebp();
-	ptr = (uint32_t*)ebp;
-	eip = ptr[1];
-	arg1 = ptr[2];
-	arg2 = ptr[3];
-	arg3 = ptr[4];
-	arg4 = ptr[5];
-	arg5 = ptr[6];
-	ptr = (uint32_t*)ptr[0];
-	cprintf("stack backtrace\n");
-	while(ptr != 0) {
-	  cprintf("ebp %08x  eip %08x args %08x %08x %08x %08x %08x\n", ebp, eip, 
-		   arg1, arg2, arg3, arg4, arg5);
-		debuginfo_eip(eip, &info);
-		cprintf("%s, %s, %d\n", info.eip_file, info.eip_fn_name, info.eip_line);
-		ebp = (uint32_t)ptr;
-		eip = ptr[1];
-		arg1 = ptr[2];
-		arg2 = ptr[3];
-		arg3 = ptr[4];
-		arg4 = ptr[5];
-		arg5 = ptr[6];
-		ptr = (uint32_t*)ptr[0];		
+	strcpy(format,
+		 " ebp %08x eip %08x args %08x %08x %08x %08x %08x");
+	strcpy(formatName, "	%s:%d: %.*s+%d\n");
+	addr = (uint32_t *)read_ebp();
+	
+	cprintf("Stack backtrace\n");
+	for (; NULL != addr;) 
+	{
+		cprintf(format, EBP(addr), EIP(addr), ARG(addr, 0), 
+			ARG(addr, 1), ARG(addr, 2), ARG(addr, 3), 
+			ARG(addr, 4));
+		debuginfo_eip(EIP(addr), &info);
+		cprintf(formatName,
+			info.eip_file,
+			info.eip_line,
+			info.eip_fn_namelen,
+			info.eip_fn_name, EIP(addr)-info.eip_fn_addr);	
+		addr = (uint32_t*)*addr;
 	}
-	cprintf("ebp %08x  eip %08x args %08x %08x %08x %08x %08x\n", ebp, eip, 
-		   arg1, arg2, arg3, arg4, arg5);
-	debuginfo_eip(eip, &info);
-	cprintf("%s, %s, %d\n", info.eip_file, info.eip_fn_name, info.eip_line);
 	return 0;
 }
 
